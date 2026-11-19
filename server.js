@@ -8,9 +8,10 @@ const userRoutes = require('./routes/UserRoutes');
 const movieRoutes = require('./routes/MovieRoutes');
 const reviewRoutes = require('./routes/ReviewRoutes');
 const adminRoutes = require('./routes/AdminRoutes');
+const memberRoutes = require('./routes/MemberRoutes');
 
 const app = express();
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+const allowedOrigins = (process.env.FRONTEND_URL || 'https://the-rush-9513.onrender.com')
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
@@ -33,7 +34,7 @@ app.use(cors({
         callback(new HttpError(403, 'This origin is not allowed by the API.'));
     }
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '6mb' }));
 
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, supabaseConfigured: isConfigured() });
@@ -42,6 +43,7 @@ app.use('/api', userRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/members', memberRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ error: 'API route not found.' });

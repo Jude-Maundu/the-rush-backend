@@ -51,12 +51,38 @@ create table if not exists public.reviews (
     created_at timestamptz not null default now()
 );
 
+create table if not exists public.crew_members (
+    id uuid primary key default gen_random_uuid(),
+    name text not null,
+    role text not null,
+    "group" text not null check ("group" in ('cast', 'crew')),
+    image text,
+    slug text not null unique,
+    bio text,
+    created_at timestamptz not null default now()
+);
+alter table public.crew_members add column if not exists image_public_id text;
+
+insert into public.crew_members (name, role, "group", image, slug)
+values
+    ('Teddy Ngare', 'Director', 'crew', '/cast/Teddy.jpeg', 'teddy-ngare'),
+    ('Felister Mwende', 'Producer', 'crew', '/cast/Felister.jpeg', 'felister-mwende'),
+    ('Rita Njeri', 'Script writer', 'crew', '/cast/Ritah.jpeg', 'rita-njeri'),
+    ('Serena Spechiozers', 'Director of photography', 'crew', '/cast/Serena.jpeg', 'serena-spechiozers'),
+    ('Gift Kioko', 'Videographer', 'crew', '/cast/Gift.jpeg', 'gift-kioko'),
+    ('Felix Ochari', 'Editor', 'crew', '/cast/Felix.jpeg', 'felix-ochari'),
+    ('Daniel Gori', 'Sound', 'crew', '/cast/Daniel.jpeg', 'daniel-gori'),
+    ('Dimitry Bifwoli', 'Main actor', 'cast', '/cast/Dimitry.jpeg', 'dimitry-bifwoli'),
+    ('Evelyn Mwikali', 'Supporting actor', 'cast', '/cast/Evelyne.jpeg', 'evelyn-mwikali')
+on conflict (slug) do nothing;
+
 create index if not exists reviews_created_at_idx on public.reviews (created_at desc);
 create index if not exists reviews_movie_id_idx on public.reviews (movie_id);
 
 alter table public.profiles enable row level security;
 alter table public.movies enable row level security;
 alter table public.reviews enable row level security;
+alter table public.crew_members enable row level security;
 
 drop policy if exists "Profiles can be read by their owner" on public.profiles;
 create policy "Profiles can be read by their owner"
@@ -66,6 +92,11 @@ create policy "Profiles can be read by their owner"
 drop policy if exists "Movies are publicly readable" on public.movies;
 create policy "Movies are publicly readable"
     on public.movies for select to anon, authenticated
+    using (true);
+
+drop policy if exists "Cast and crew are publicly readable" on public.crew_members;
+create policy "Cast and crew are publicly readable"
+    on public.crew_members for select to anon, authenticated
     using (true);
 
 drop policy if exists "Reviews are publicly readable" on public.reviews;

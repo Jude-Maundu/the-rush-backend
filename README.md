@@ -6,9 +6,12 @@ The Express API uses Supabase Auth for accounts and Supabase Postgres for movie,
 
 1. From this directory, install dependencies with `npm install`.
 2. Copy `.env.example` to `.env` and set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY` from the Supabase project's API settings. `SUPABASE_URL` must be the project API URL (for example, `https://<project-ref>.supabase.co`), not a Supabase dashboard URL. Keep `.env` private and never put the secret key in the React app. Existing `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` names are also accepted.
-3. Run `supabase/schema.sql` in the Supabase SQL Editor.
-4. Start the API with `npm start`.
-5. In another terminal, run the React app from `../the-rush` with `npm start`. The development proxy forwards `/api` requests to `http://localhost:5000`; set `REACT_APP_API_URL` for a separately hosted API.
+3. Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` using the Cloudinary account's API credentials. Keep these values in the backend environment only (including Render's backend environment settings); never add them to frontend `REACT_APP_*` variables. Admin cast/crew portrait uploads require these settings.
+4. Run the latest `supabase/schema.sql` in the Supabase SQL Editor. If the schema was already installed, rerun it to add the Cloudinary public ID column used when replacing/removing portraits.
+5. Start the API with `npm start`.
+6. In another terminal, run the React app from `../the-rush` with `npm start`. The frontend uses `https://the-rush-backend.onrender.com` for hosted API requests; set `REACT_APP_API_URL` to override it. Set `FRONTEND_URL=https://the-rush-9513.onrender.com` when deploying the API.
+
+Cast and crew portraits are uploaded through the authenticated admin API to the `the-rush/cast-crew` Cloudinary folder. Replacing or removing a portrait also removes its old Cloudinary asset. Images are limited to JPG, PNG, or WebP up to 5 MB.
 
 The API health check is `GET /api/health`. It reports whether the project URL and required keys appear configured; it does not make a live database query.
 
