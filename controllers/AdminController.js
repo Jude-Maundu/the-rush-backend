@@ -1,6 +1,6 @@
 const { getClients } = require('../services/supabase');
 const { HttpError, isUuid } = require('../services/http');
-const { uploadImage, deleteImage } = require('../services/cloudinary');
+const { uploadPortrait, deleteImage } = require('../services/cloudinary');
 const { listReviews } = require('./ReviewController');
 
 async function overview(req, res) {
@@ -174,25 +174,25 @@ function isValidImageFile(file) {
         && buffer.toString('ascii', 8, 12) === 'WEBP';
 }
 
-async function removeImageAfterMutation(publicId, action) {
-    if (!publicId) return null;
+async function removeImageAfterMutation(imageRecord, action) {
+    if (!imageRecord?.image_public_id && !imageRecord?.image_storage_key) return null;
     try {
-        await deleteImage(publicId);
+        await deleteImage(imageRecord);
         return null;
     } catch (error) {
-        console.error('Cloudinary image cleanup failed:', error);
+        console.error('Portrait cleanup failed:', error);
         return action === 'delete'
-            ? 'The member was removed, but their Cloudinary portrait could not be deleted.'
-            : 'The member was saved, but their old Cloudinary portrait could not be deleted.';
+            ? 'The member was removed, but their old portrait could not be deleted from storage.'
+            : 'The member was saved, but their old portrait could not be deleted from storage.';
     }
 }
 
 async function cleanUpUnattachedImage(image) {
-    if (!image?.image_public_id) return;
+    if (!image?.image_public_id && !image?.image_storage_key) return;
     try {
-        await deleteImage(image.image_public_id);
+        await deleteImage(image);
     } catch (error) {
-        console.error('Cloudinary cleanup failed after a database error:', error);
+        console.error('Portrait cleanup failed after a database error:', error);
     }
 }
 
@@ -212,11 +212,17 @@ async function addMember(req, res) {
     if (!slug) throw new HttpError(400, 'Name must contain valid characters.');
     if (!isValidImageFile(req.file)) throw new HttpError(400, 'The selected file is not a valid JPG, PNG, or WebP image.');
     const { database } = getClients();
-    const image = req.file ? await uploadImage(req.file.buffer) : null;
+    const image = req.file ? await uploadPortrait(req.file.buffer, req.file.mimetype) : null;
+    const imageFields = image ? {
+        image: image.image,
+        image_public_id: image.image_public_id,
+        image_storage: image.image_storage,
+        image_storage_key: image.image_storage_key
+    } : {};
 
     const { data, error } = await database
         .from('crew_members')
-        .insert({ ...member, ...(image || {}), slug })
+        .insert({ ...member, ...imageFields, slug })
         .select('*')
         .single();
     if (error) {
@@ -224,7 +230,10 @@ async function addMember(req, res) {
         if (error.code === '23505') throw new HttpError(409, 'A cast or crew member with this name already exists.');
         throw error;
     }
-    res.status(201).json({ member: data });
+    res.status(201).json({
+        member: data,
+        ...(image?.warning ? { warning: image.warning } : {})
+    });
 }
 
 async function updateMember(req, res) {
@@ -237,19 +246,28 @@ async function updateMember(req, res) {
     const { database } = getClients();
     const { data: current, error: currentError } = await database
         .from('crew_members')
-        .select('id, image_public_id')
+        .select('id, image, image_public_id, image_storage, image_storage_key')
         .eq('id', req.params.id)
         .maybeSingle();
     if (currentError) throw currentError;
     if (!current) throw new HttpError(404, 'Cast or crew member not found.');
 
-    const image = req.file ? await uploadImage(req.file.buffer) : null;
+    const image = req.file ? await uploadPortrait(req.file.buffer, req.file.mimetype) : null;
     const removeCurrentImage = req.body.removeImage === 'true';
     const update = { ...member, slug };
-    if (image) Object.assign(update, image);
+    if (image) {
+        Object.assign(update, {
+            image: image.image,
+            image_public_id: image.image_public_id,
+            image_storage: image.image_storage,
+            image_storage_key: image.image_storage_key
+        });
+    }
     else if (removeCurrentImage) {
         update.image = null;
         update.image_public_id = null;
+        update.image_storage = 'cloudinary';
+        update.image_storage_key = null;
     }
 
     const { data, error } = await database
@@ -267,9 +285,10 @@ async function updateMember(req, res) {
 
     const replacedImage = image || removeCurrentImage;
     const cleanupWarning = replacedImage
-        ? await removeImageAfterMutation(current.image_public_id)
+        ? await removeImageAfterMutation(current)
         : null;
-    res.json({ member: data, ...(cleanupWarning ? { warning: cleanupWarning } : {}) });
+    const warnings = [image?.warning, cleanupWarning].filter(Boolean);
+    res.json({ member: data, ...(warnings.length ? { warning: warnings.join(' ') } : {}) });
 }
 
 async function deleteMember(req, res) {
@@ -277,7 +296,7 @@ async function deleteMember(req, res) {
     const { database } = getClients();
     const { data: current, error: currentError } = await database
         .from('crew_members')
-        .select('id, image_public_id')
+        .select('id, image, image_public_id, image_storage, image_storage_key')
         .eq('id', req.params.id)
         .maybeSingle();
     if (currentError) throw currentError;
@@ -291,7 +310,7 @@ async function deleteMember(req, res) {
         .maybeSingle();
     if (error) throw error;
     if (!data) throw new HttpError(404, 'Cast or crew member not found.');
-    const warning = await removeImageAfterMutation(current.image_public_id, 'delete');
+    const warning = await removeImageAfterMutation(current, 'delete');
     res.json({ ok: true, ...(warning ? { warning } : {}) });
 }
 

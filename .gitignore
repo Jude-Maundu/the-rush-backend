@@ -1,3 +1,5 @@
 node_modules/
 .env
 npm-debug.log*
+uploads/cast-crew/*
+!uploads/cast-crew/.gitkeep

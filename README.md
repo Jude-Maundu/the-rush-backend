@@ -7,11 +7,14 @@ The Express API uses Supabase Auth for accounts and Supabase Postgres for movie,
 1. From this directory, install dependencies with `npm install`.
 2. Copy `.env.example` to `.env` and set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY` from the Supabase project's API settings. `SUPABASE_URL` must be the project API URL (for example, `https://<project-ref>.supabase.co`), not a Supabase dashboard URL. Keep `.env` private and never put the secret key in the React app. Existing `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` names are also accepted.
 3. Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` using the Cloudinary account's API credentials. Keep these values in the backend environment only (including Render's backend environment settings); never add them to frontend `REACT_APP_*` variables. Admin cast/crew portrait uploads require these settings.
-4. Run the latest `supabase/schema.sql` in the Supabase SQL Editor. If the schema was already installed, rerun it to add the Cloudinary public ID column used when replacing/removing portraits.
-5. Start the API with `npm start`.
-6. In another terminal, run the React app from `../the-rush` with `npm start`. The frontend uses `https://the-rush-backend.onrender.com` for hosted API requests; set `REACT_APP_API_URL` to override it. Set `FRONTEND_URL=https://the-rush-9513.onrender.com` when deploying the API.
+4. Set `BACKEND_PUBLIC_URL` to the public API origin (for example, `https://the-rush-backend.onrender.com`) so locally stored portrait links point to the backend.
+5. Run the latest `supabase/schema.sql` in the Supabase SQL Editor. If the schema was already installed, rerun it to add the portrait storage fields used when replacing/removing images.
+6. Start the API with `npm start`.
+7. In another terminal, run the React app from `../the-rush` with `npm start`. The frontend uses `https://the-rush-backend.onrender.com` for hosted API requests; set `REACT_APP_API_URL` to override it. Set `FRONTEND_URL=https://the-rush-9513.onrender.com` when deploying the API.
 
-Cast and crew portraits are uploaded through the authenticated admin API to the `the-rush/cast-crew` Cloudinary folder. Replacing or removing a portrait also removes its old Cloudinary asset. Images are limited to JPG, PNG, or WebP up to 5 MB.
+Cast and crew profiles are created and managed in the admin dashboard; the public pages read only from `crew_members` and do not use hardcoded cast/crew details. The latest schema removes untouched legacy sample profiles from earlier versions. Portraits are uploaded through the authenticated admin API to the `the-rush/cast-crew` Cloudinary folder. If Cloudinary is not configured or an upload fails, the API temporarily saves the image under `backend/uploads/cast-crew/` and serves it from `/uploads/cast-crew/`. Replacing or removing a portrait cleans up the old Cloudinary asset or local file where possible. Images are limited to JPG, PNG, or WebP up to 5 MB.
+
+The local folder is temporary storage, not a backup. Render's normal filesystem is ephemeral, so locally stored images can disappear when the service restarts or redeploys. Configure a persistent disk or restore Cloudinary for durable image storage.
 
 The API health check is `GET /api/health`. It reports whether the project URL and required keys appear configured; it does not make a live database query.
 

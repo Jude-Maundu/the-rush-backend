@@ -62,9 +62,11 @@ create table if not exists public.crew_members (
     created_at timestamptz not null default now()
 );
 alter table public.crew_members add column if not exists image_public_id text;
+alter table public.crew_members add column if not exists image_storage text not null default 'cloudinary';
+alter table public.crew_members add column if not exists image_storage_key text;
 
-insert into public.crew_members (name, role, "group", image, slug)
-values
+delete from public.crew_members as member
+using (values
     ('Teddy Ngare', 'Director', 'crew', '/cast/Teddy.jpeg', 'teddy-ngare'),
     ('Felister Mwende', 'Producer', 'crew', '/cast/Felister.jpeg', 'felister-mwende'),
     ('Rita Njeri', 'Script writer', 'crew', '/cast/Ritah.jpeg', 'rita-njeri'),
@@ -74,7 +76,15 @@ values
     ('Daniel Gori', 'Sound', 'crew', '/cast/Daniel.jpeg', 'daniel-gori'),
     ('Dimitry Bifwoli', 'Main actor', 'cast', '/cast/Dimitry.jpeg', 'dimitry-bifwoli'),
     ('Evelyn Mwikali', 'Supporting actor', 'cast', '/cast/Evelyne.jpeg', 'evelyn-mwikali')
-on conflict (slug) do nothing;
+) as legacy(name, role, group_name, image, slug)
+where member.name = legacy.name
+    and member.role = legacy.role
+    and member."group" = legacy.group_name
+    and member.image = legacy.image
+    and member.slug = legacy.slug
+    and member.bio is null
+    and member.image_public_id is null
+    and member.image_storage_key is null;
 
 create index if not exists reviews_created_at_idx on public.reviews (created_at desc);
 create index if not exists reviews_movie_id_idx on public.reviews (movie_id);

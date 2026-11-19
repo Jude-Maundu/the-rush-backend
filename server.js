@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { isConfigured } = require('./services/supabase');
 const { HttpError } = require('./services/http');
 const userRoutes = require('./routes/UserRoutes');
@@ -35,6 +36,11 @@ app.use(cors({
     }
 }));
 app.use(express.json({ limit: '6mb' }));
+app.use('/uploads/cast-crew', express.static(path.join(__dirname, 'uploads/cast-crew'), {
+    dotfiles: 'deny',
+    index: false,
+    maxAge: '1d'
+}));
 
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, supabaseConfigured: isConfigured() });
